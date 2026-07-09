@@ -11,7 +11,10 @@ import Secao from '@/components/Secao.vue'
 import { api } from '@/composables/useApi'
 import { useLoading } from '@/composables/useLoading'
 import { pvMax, pmMax, calcularCustoTotal } from '@/composables/useCalculos'
-import type { Personagem, Vantagem } from '@/types'
+import type { ImagemPersonagem, Personagem, Vantagem } from '@/types'
+import ImagemForm from '@/components/ImagemForm.vue'
+
+const avatarErro = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -34,9 +37,11 @@ const racialNome = ref('')
 const racialDesc = ref('')
 const notas = ref('')
 const avatar_url = ref('')
+const lore = ref('')
 
 const vantagens = ref<Vantagem[]>([])
 const desvantagens = ref<Vantagem[]>([])
+const imagens = ref<ImagemPersonagem[]>([])
 
 const pvMaximo = computed(() => pvMax({ resistencia: resistencia.value, pv_bonus: pvBonus.value }))
 const pmMaximo = computed(() => pmMax({ habilidade: habilidade.value, pm_bonus: pmBonus.value }))
@@ -72,8 +77,12 @@ function removerDesvantagem(index: number) {
 async function carregar() {
   if (!id.value) return
   try {
-    const [p, v] = await withLoading(() =>
-      Promise.all([api.getPersonagem(id.value!), api.getVantagens(id.value!)]),
+    const [p, v, img] = await withLoading(() =>
+      Promise.all([
+        api.getPersonagem(id.value!),
+        api.getVantagens(id.value!),
+        api.getImagens(id.value!),
+      ]),
     )
     nome.value = p.nome
     subtitulo.value = p.subtitulo
@@ -88,13 +97,23 @@ async function carregar() {
     racialNome.value = p.racial_nome
     racialDesc.value = p.racial_desc
     notas.value = p.notas
+    lore.value = p.lore
 
     vantagens.value = v.filter((x) => x.custo >= 0 && !x.tags.includes('desvantagem'))
     desvantagens.value = v.filter((x) => x.custo < 0 || x.tags.includes('desvantagem'))
+    imagens.value = img
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao carregar personagem', life: 3000 })
     router.push('/')
   }
+}
+
+function adicionarImagem() {
+  imagens.value.push({ url: '', titulo: '', subtitulo: '', ordem: imagens.value.length } as ImagemPersonagem)
+}
+
+function removerImagem(index: number) {
+  imagens.value.splice(index, 1)
 }
 
 async function salvar() {
@@ -112,6 +131,7 @@ async function salvar() {
     racial_nome: racialNome.value,
     racial_desc: racialDesc.value,
     notas: notas.value,
+    lore: lore.value
   }
 
   try {
@@ -125,6 +145,7 @@ async function salvar() {
       }
 
       await api.salvarVantagens(personagemId!, [...vantagens.value, ...desvantagens.value])
+      await api.salvarImagens(personagemId!, [...imagens.value])
       return personagemId
     }).then((personagemId) => {
       toast.add({ severity: 'success', summary: 'Salvo', detail: 'Personagem salvo com sucesso.', life: 2000 })
@@ -153,7 +174,17 @@ onMounted(carregar)
         <InputText v-model="nome" placeholder="Nome" class="w-full" />
         <InputText v-model="subtitulo" placeholder="Subtítulo" class="w-full" />
         <InputText v-model="arquetipo" placeholder="Arquétipo" class="w-full" />
-        <InputText v-model="avatar_url" placeholder="Link da imagem" class="w-full" />
+
+        <div class="flex items-center gap-3">
+          <div class="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-surface-900 ring-1 ring-white/6">
+            <img v-if="avatar_url && !avatarErro" :src="avatar_url" class="h-full w-full object-cover"
+              @error="avatarErro = true" @load="avatarErro = false" />
+            <div v-else class="flex h-full w-full items-center justify-center text-sm font-medium text-surface-500">
+              {{ nome?.charAt(0).toUpperCase() || '?' }}
+            </div>
+          </div>
+          <InputText v-model="avatar_url" placeholder="Link da imagem" class="w-full" />
+        </div>
       </div>
     </Secao>
 
@@ -206,39 +237,30 @@ onMounted(carregar)
 
     <Secao titulo="Vantagens">
       <div class="flex flex-col gap-2">
-        <VantagemForm
-          v-for="(v, i) in vantagens"
-          :key="i"
-          :vantagem="v"
-          :index="i"
-          @remover="removerVantagem"
-        />
+        <VantagemForm v-for="(v, i) in vantagens" :key="i" :vantagem="v" :index="i" @remover="removerVantagem" />
       </div>
-      <Button
-        label="+ Adicionar Vantagem"
-        text
-        class="mt-2! min-h-9.5!"
-        @click="adicionarVantagem"
-      />
+      <Button label="+ Adicionar Vantagem" text class="mt-2! min-h-9.5!" @click="adicionarVantagem" />
     </Secao>
 
     <Secao titulo="Desvantagens">
       <div class="flex flex-col gap-2">
-        <VantagemForm
-          v-for="(v, i) in desvantagens"
-          :key="i"
-          :vantagem="v"
-          :index="i"
-          :isDesv="true"
-          @remover="removerDesvantagem"
-        />
+        <VantagemForm v-for="(v, i) in desvantagens" :key="i" :vantagem="v" :index="i" :isDesv="true"
+          @remover="removerDesvantagem" />
       </div>
-      <Button
-        label="+ Adicionar Desvantagem"
-        text
-        class="mt-2! min-h-9.5! text-rose-400!"
-        @click="adicionarDesvantagem"
-      />
+      <Button label="+ Adicionar Desvantagem" text class="mt-2! min-h-9.5! text-rose-400!"
+        @click="adicionarDesvantagem" />
+    </Secao>
+
+
+    <Secao titulo="Imagens">
+      <div class="flex flex-col gap-2">
+        <ImagemForm v-for="(img, i) in imagens" :key="i" :imagem="img" :index="i" @remover="removerImagem" />
+      </div>
+      <Button label="+ Adicionar Imagem" text class="mt-2! min-h-9.5!" @click="adicionarImagem" />
+    </Secao>
+
+    <Secao titulo="Lore">
+      <Textarea v-model="lore" rows="3" autoResize class="w-full" />
     </Secao>
 
     <!-- Custo total -->

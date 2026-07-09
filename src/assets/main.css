@@ -55,3 +55,63 @@ a {
 .animate-pulse-green {
   animation: pulse-green 1.6s ease-in-out infinite;
 }
+
+
+.markdown-lore h1,
+.markdown-lore h2,
+.markdown-lore h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--p-surface-0);
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-lore h1 { font-size: 1.125rem; }
+.markdown-lore h2 { font-size: 1rem; }
+.markdown-lore h3 { font-size: 0.9375rem; }
+
+.markdown-lore h1:first-child,
+.markdown-lore h2:first-child,
+.markdown-lore h3:first-child {
+  margin-top: 0;
+}
+
+.markdown-lore p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+.markdown-lore p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-lore strong {
+  font-weight: 600;
+  color: var(--p-surface-200);
+}
+
+.markdown-lore ol {
+  list-style-type: decimal;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.markdown-lore ul {
+  list-style-type: disc;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.markdown-lore blockquote {
+  border-left: 2px solid var(--p-primary-500);
+  padding-left: 0.75rem;
+  margin: 0.75rem 0;
+  color: var(--p-surface-400);
+}
+
+.markdown-lore hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 1rem 0;
+}

@@ -18,7 +18,6 @@ const toast = useToast()
 const personagens = ref<Personagem[]>([])
 const avatarErro = ref<Record<number, boolean>>({})
 
-
 const { start, stop, withLoading } = useLoading()
 
 async function carregar() {
@@ -28,7 +27,6 @@ async function carregar() {
     toast.add({ severity: 'error', summary: 'Erro ao carregar personagens', life: 3000 })
   }
 }
-
 
 async function abrirFicha(id: number) {
   start()
@@ -87,7 +85,6 @@ onMounted(carregar)
           <Avatar v-if="!avatarErro[p.id] && p.avatar_url" :image="p.avatar_url" shape="circle" size="xlarge"
             @error="avatarErro[p.id] = true" />
           <Avatar v-else :label="p.nome?.charAt(0).toUpperCase()" shape="circle" size="xlarge" />
-
 
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-2">

@@ -85,4 +85,8 @@ export const api = {
   getImagens(id: number | string) {
     return http.get<ImagemPersonagem[]>(`/imagens/${id}`).then((r) => r.data)
   },
+
+  salvarImagens(id: number | string, imagens: ImagemPersonagem[]) {
+    return http.post(`/imagens/${id}`, imagens).then((r) => r.data)
+  },
 }

@@ -14,6 +14,7 @@ export interface Personagem {
   racial_nome: string
   racial_desc: string
   notas: string
+  lore: string
   criado_em: string
   atualizado_em: string
   pv_atual?: number | null
@@ -55,7 +56,6 @@ export interface ExportacaoPersonagem {
   vantagens: Vantagem[]
   estado: Estado | null
 }
-
 
 export interface ImagemPersonagem {
   id: number
