@@ -22,6 +22,8 @@ jobs:
         run: |
           docker build \
             --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+            --build-arg VITE_ZITADEL_AUTHORITY=${{ secrets.VITE_ZITADEL_AUTHORITY }} \
+            --build-arg VITE_ZITADEL_CLIENT_ID=${{ secrets.VITE_ZITADEL_CLIENT_ID }} \
             -t oseiasoliveira/victory-ui:${{ github.ref_name }} \
             -t oseiasoliveira/victory-ui:latest \
             .

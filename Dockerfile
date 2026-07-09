@@ -4,6 +4,8 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 ARG VITE_API_URL
+ARG VITE_ZITADEL_AUTHORITY
+ARG VITE_ZITADEL_CLIENT_ID
 RUN npm run build
 
 FROM nginx:alpine
