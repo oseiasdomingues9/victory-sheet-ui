@@ -12,7 +12,7 @@ import ResourceBar from '@/components/ResourceBar.vue'
 import VantagemItem from '@/components/VantagemItem.vue'
 import { api } from '@/composables/useApi'
 import { pvMax, pmMax, paMax, calcularCustoTotal } from '@/composables/useCalculos'
-import type { Personagem, Vantagem, Estado, Sessao } from '@/types'
+import type { Personagem, Vantagem, Estado, Sessao, ImagemPersonagem } from '@/types'
 import Secao from '@/components/Secao.vue'
 import AtributoCard from '@/components/AtributoCard.vue'
 import { useLoading } from '@/composables/useLoading'
@@ -29,6 +29,7 @@ const personagem = ref<Personagem | null>(null)
 const estado = ref<Estado | null>(null)
 const vantagens = ref<Vantagem[]>([])
 const sessaoAtiva = ref<Sessao | null>(null)
+const imagens = ref<ImagemPersonagem[]>(null)
 
 const dialogEncerrar = ref(false)
 const notasSessao = ref('')
@@ -61,18 +62,20 @@ const desvantagens = computed(() =>
 
 async function carregar() {
   try {
-    const [p, e, v, sessoes] = await withLoading(() =>
+    const [p, e, v, sessoes, i] = await withLoading(() =>
       Promise.all([
         api.getPersonagem(id.value),
         api.getEstado(id.value),
         api.getVantagens(id.value),
         api.getSessoes(id.value),
+        api.getImagens(id.value),
       ]),
     )
     personagem.value = p
     estado.value = e
     vantagens.value = v
     sessaoAtiva.value = sessoes.find((s) => s.pv_fim === null) ?? null
+    imagens.value = i
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao carregar ficha', life: 3000 })
   }
@@ -161,12 +164,22 @@ onMounted(carregar)
       <RouterLink to="/" class="text-surface-400 transition-colors hover:text-surface-0">
         <i class="pi pi-arrow-left" />
       </RouterLink>
+
+      <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-800 ring-1 ring-white/6">
+        <img v-if="personagem.avatar_url" :src="personagem.avatar_url" :alt="personagem.nome"
+          class="h-full w-full object-cover" @error="($event.target as HTMLImageElement).style.display = 'none'" />
+        <div v-else class="flex h-full w-full items-center justify-center font-medium text-surface-500">
+          {{ personagem.nome?.charAt(0).toUpperCase() }}
+        </div>
+      </div>
+
       <div class="min-w-0 flex-1">
         <h1 class="truncate text-xl font-medium text-surface-0" style="font-family: var(--font-display)">
           {{ personagem.nome }}
         </h1>
         <p v-if="personagem.subtitulo" class="truncate text-sm text-surface-400">{{ personagem.subtitulo }}</p>
       </div>
+
       <Tag v-if="personagem.arquetipo" :value="personagem.arquetipo" severity="info" />
     </div>
 
@@ -227,6 +240,19 @@ onMounted(carregar)
 
     <Secao v-if="personagem.notas" titulo="Notas">
       <p class="text-sm text-surface-400">{{ personagem.notas }}</p>
+    </Secao>
+
+    <Secao v-if="imagens?.length" titulo="Imagens">
+      <div class="grid grid-cols-2 gap-3">
+        <div v-for="img in imagens" :key="img.id" class="overflow-hidden rounded-lg bg-surface-800">
+          <img :src="img.url" :alt="img.titulo || personagem.nome" class="aspect-square w-full object-cover"
+            @error="($event.target as HTMLImageElement).style.display = 'none'" />
+          <div v-if="img.titulo || img.subtitulo" class="p-2">
+            <p v-if="img.titulo" class="truncate text-sm font-medium text-surface-0">{{ img.titulo }}</p>
+            <p v-if="img.subtitulo" class="truncate text-xs text-surface-400">{{ img.subtitulo }}</p>
+          </div>
+        </div>
+      </div>
     </Secao>
 
     <!-- Ação primária isolada -->

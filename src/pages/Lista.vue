@@ -16,6 +16,8 @@ const confirm = useConfirm()
 const toast = useToast()
 
 const personagens = ref<Personagem[]>([])
+const avatarErro = ref<Record<number, boolean>>({})
+
 
 const { start, stop, withLoading } = useLoading()
 
@@ -26,6 +28,8 @@ async function carregar() {
     toast.add({ severity: 'error', summary: 'Erro ao carregar personagens', life: 3000 })
   }
 }
+
+
 async function abrirFicha(id: number) {
   start()
   try {
@@ -80,12 +84,16 @@ onMounted(carregar)
           class="absolute inset-y-0 left-0 w-0.5 bg-primary-500 opacity-30 transition-all duration-200 group-hover:w-1 group-hover:opacity-100" />
 
         <div class="flex items-start gap-3">
-          <Avatar :label="p.nome?.charAt(0).toUpperCase()" shape="circle" size="xlarge" />
+          <Avatar v-if="!avatarErro[p.id] && p.avatar_url" :image="p.avatar_url" shape="circle" size="xlarge"
+            @error="avatarErro[p.id] = true" />
+          <Avatar v-else :label="p.nome?.charAt(0).toUpperCase()" shape="circle" size="xlarge" />
+
 
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <h2 class="truncate font-medium text-surface-0" style="font-family: var(--font-display)">{{ p.nome }}</h2>
+                <h2 class="truncate font-medium text-surface-0" style="font-family: var(--font-display)">{{ p.nome }}
+                </h2>
                 <p v-if="p.subtitulo" class="truncate text-sm text-surface-400">{{ p.subtitulo }}</p>
               </div>
               <Tag v-if="p.arquetipo" :value="p.arquetipo" severity="info" class="shrink-0" />

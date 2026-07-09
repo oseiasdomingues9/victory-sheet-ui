@@ -4,6 +4,7 @@ export interface Personagem {
   nome: string
   subtitulo: string
   arquetipo: string
+  avatar_url: string
   poder: number
   habilidade: number
   resistencia: number
@@ -53,4 +54,14 @@ export interface ExportacaoPersonagem {
   personagem: Personagem
   vantagens: Vantagem[]
   estado: Estado | null
+}
+
+
+export interface ImagemPersonagem {
+  id: number
+  personagem_id: number
+  url: string
+  titulo: string
+  subtitulo: string
+  ordem: number
 }

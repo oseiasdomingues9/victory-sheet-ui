@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Personagem, Vantagem, Estado, Sessao, ExportacaoPersonagem } from '@/types'
+import type { Personagem, Vantagem, Estado, Sessao, ExportacaoPersonagem, ImagemPersonagem } from '@/types'
 import { userManager } from './userAuth'
 
 const http = axios.create({
@@ -80,5 +80,9 @@ export const api = {
   },
   importar(dados: ExportacaoPersonagem) {
     return http.post<{ id: number }>('/import', dados).then((r) => r.data)
+  },
+
+  getImagens(id: number | string) {
+    return http.get<ImagemPersonagem[]>(`/imagens/${id}`).then((r) => r.data)
   },
 }

@@ -33,6 +33,7 @@ const periciasTexto = ref('')
 const racialNome = ref('')
 const racialDesc = ref('')
 const notas = ref('')
+const avatar_url = ref('')
 
 const vantagens = ref<Vantagem[]>([])
 const desvantagens = ref<Vantagem[]>([])
@@ -77,6 +78,7 @@ async function carregar() {
     nome.value = p.nome
     subtitulo.value = p.subtitulo
     arquetipo.value = p.arquetipo
+    avatar_url.value = p.avatar_url
     poder.value = p.poder
     habilidade.value = p.habilidade
     resistencia.value = p.resistencia
@@ -86,6 +88,7 @@ async function carregar() {
     racialNome.value = p.racial_nome
     racialDesc.value = p.racial_desc
     notas.value = p.notas
+
     vantagens.value = v.filter((x) => x.custo >= 0 && !x.tags.includes('desvantagem'))
     desvantagens.value = v.filter((x) => x.custo < 0 || x.tags.includes('desvantagem'))
   } catch (e) {
@@ -99,6 +102,7 @@ async function salvar() {
     nome: nome.value,
     subtitulo: subtitulo.value,
     arquetipo: arquetipo.value,
+    avatar_url: avatar_url.value,
     poder: poder.value,
     habilidade: habilidade.value,
     resistencia: resistencia.value,
@@ -149,6 +153,7 @@ onMounted(carregar)
         <InputText v-model="nome" placeholder="Nome" class="w-full" />
         <InputText v-model="subtitulo" placeholder="Subtítulo" class="w-full" />
         <InputText v-model="arquetipo" placeholder="Arquétipo" class="w-full" />
+        <InputText v-model="avatar_url" placeholder="Link da imagem" class="w-full" />
       </div>
     </Secao>
 
