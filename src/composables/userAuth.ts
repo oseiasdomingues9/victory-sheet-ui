@@ -22,5 +22,5 @@ export async function logout() {
   })
 }
 
-userManager.events.addUserLoaded((user) => (currentUser.value = user))
-userManager.events.addUserUnloaded(() => (currentUser.value = null))
+userManager.events.addUserLoaded((user) => { currentUser.value = user })
+userManager.events.addUserUnloaded(() => { currentUser.value = null })
