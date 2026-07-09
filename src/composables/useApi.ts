@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Personagem, Vantagem, Estado, Sessao, ExportacaoPersonagem, ImagemPersonagem } from '@/types'
+import type { Personagem, Vantagem, Estado, Sessao, ExportacaoPersonagem, ImagemPersonagem, Combo, ItemMochila } from '@/types'
 import { userManager } from './userAuth'
 
 const http = axios.create({
@@ -88,5 +88,19 @@ export const api = {
 
   salvarImagens(id: number | string, imagens: ImagemPersonagem[]) {
     return http.post(`/imagens/${id}`, imagens).then((r) => r.data)
+  },
+
+  getCombos(id: number | string) {
+    return http.get<Combo[]>(`/personagens/${id}/combos`).then((r) => r.data)
+  },
+  salvarCombos(id: number | string, combos: Combo[]) {
+    return http.post(`/personagens/${id}/combos`, combos).then((r) => r.data)
+  },
+
+  getMochila(id: number | string) {
+    return http.get<ItemMochila[]>(`/personagens/${id}/mochila`).then((r) => r.data)
+  },
+  salvarMochila(id: number | string, itens: ItemMochila[]) {
+    return http.post(`/personagens/${id}/mochila`, itens).then((r) => r.data)
   },
 }

@@ -65,3 +65,28 @@ export interface ImagemPersonagem {
   subtitulo: string
   ordem: number
 }
+
+export interface Combo {
+  id?: number
+  personagem_id?: number
+  nome: string
+  dados: string
+  poder_base: string
+  vantagens_ativas: string
+  custo: string
+  dano: string
+  mecanica_extra: string
+  acoes_turno: string
+  observacao: string
+  critico: string
+  ordem: number
+}
+
+export interface ItemMochila {
+  id?: number
+  personagem_id?: number
+  nome: string
+  descricao: string
+  quantidade: number
+  ordem: number
+}

@@ -7,12 +7,13 @@ import Tag from 'primevue/tag'
 import Chip from 'primevue/chip'
 import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
+import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import ResourceBar from '@/components/ResourceBar.vue'
 import VantagemItem from '@/components/VantagemItem.vue'
 import { api } from '@/composables/useApi'
 import { pvMax, pmMax, paMax, calcularCustoTotal } from '@/composables/useCalculos'
-import type { Personagem, Vantagem, Estado, Sessao, ImagemPersonagem } from '@/types'
+import type { Personagem, Vantagem, Estado, Sessao, ImagemPersonagem, Combo, ItemMochila } from '@/types'
 import Secao from '@/components/Secao.vue'
 import AtributoCard from '@/components/AtributoCard.vue'
 import { useLoading } from '@/composables/useLoading'
@@ -34,9 +35,32 @@ const vantagens = ref<Vantagem[]>([])
 const sessoes = ref<Sessao[]>([])
 const sessaoAtiva = ref<Sessao | null>(null)
 const imagens = ref<ImagemPersonagem[]>([])
+const mochila = ref<ItemMochila[]>([])
+const combos = ref<Combo[]>([])
 
 const dialogEncerrar = ref(false)
 const notasSessao = ref('')
+
+const dialogNovoItem = ref(false)
+const dialogNovoCombo = ref(false)
+
+const itemVazio = (): ItemMochila => ({ nome: '', descricao: '', quantidade: 1, ordem: mochila.value.length })
+const comboVazio = (): Combo => ({
+  nome: '',
+  dados: '',
+  poder_base: '',
+  vantagens_ativas: '',
+  custo: '',
+  dano: '',
+  mecanica_extra: '',
+  acoes_turno: '',
+  observacao: '',
+  critico: '',
+  ordem: combos.value.length,
+})
+
+const novoItem = ref<ItemMochila>(itemVazio())
+const novoCombo = ref<Combo>(comboVazio())
 
 type Aba = 'dados' | 'vantagens' | 'mochila' | 'imagens' | 'lore'
 const abaAtiva = ref<Aba>('dados')
@@ -76,13 +100,15 @@ const desvantagens = computed(() =>
 
 async function carregar() {
   try {
-    const [p, e, v, s, i] = await withLoading(() =>
+    const [p, e, v, s, i, m, c] = await withLoading(() =>
       Promise.all([
         api.getPersonagem(id.value),
         api.getEstado(id.value),
         api.getVantagens(id.value),
         api.getSessoes(id.value),
         api.getImagens(id.value),
+        api.getMochila(id.value),
+        api.getCombos(id.value),
       ]),
     )
     personagem.value = p
@@ -91,8 +117,62 @@ async function carregar() {
     sessoes.value = s
     sessaoAtiva.value = s.find((s) => s.pv_fim === null) ?? null
     imagens.value = i
+    mochila.value = m
+    combos.value = c
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao carregar ficha', life: 3000 })
+  }
+}
+
+function abrirDialogNovoItem() {
+  novoItem.value = itemVazio()
+  dialogNovoItem.value = true
+}
+
+async function confirmarNovoItem() {
+  const atualizados = [...mochila.value, { ...novoItem.value }]
+  try {
+    await api.salvarMochila(id.value, atualizados)
+    mochila.value = atualizados
+    dialogNovoItem.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao salvar item', life: 3000 })
+  }
+}
+
+async function removerItem(index: number) {
+  const atualizados = mochila.value.filter((_, i) => i !== index)
+  try {
+    await api.salvarMochila(id.value, atualizados)
+    mochila.value = atualizados
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao remover item', life: 3000 })
+  }
+}
+
+function abrirDialogNovoCombo() {
+  novoCombo.value = comboVazio()
+  dialogNovoCombo.value = true
+}
+
+async function confirmarNovoCombo() {
+  const atualizados = [...combos.value, { ...novoCombo.value }]
+  try {
+    await api.salvarCombos(id.value, atualizados)
+    combos.value = atualizados
+    dialogNovoCombo.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao salvar combo', life: 3000 })
+  }
+}
+
+async function removerCombo(index: number) {
+  const atualizados = combos.value.filter((_, i) => i !== index)
+  try {
+    await api.salvarCombos(id.value, atualizados)
+    combos.value = atualizados
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao remover combo', life: 3000 })
   }
 }
 
@@ -309,14 +389,46 @@ onMounted(carregar)
         </Secao>
       </template>
 
-      <!-- Aba: Mochila (backend ainda não existe — mockado) -->
+      <!-- Aba: Mochila -->
       <template v-if="abaAtiva === 'mochila'">
-        <div
-          class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-surface-700 p-10 text-center">
-          <i class="pi pi-briefcase text-2xl text-surface-600" />
-          <p class="text-surface-300">Mochila</p>
-          <p class="text-sm text-surface-500">Em breve — gerenciamento de itens e equipamentos.</p>
-        </div>
+        <Secao titulo="Itens">
+          <div v-if="mochila.length" class="flex flex-col gap-2">
+            <div v-for="(item, i) in mochila" :key="item.id ?? i"
+              class="flex items-start justify-between gap-2 rounded-lg border border-white/6 bg-surface-800 p-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-surface-0">{{ item.nome }}</span>
+                  <span class="text-sm text-surface-400">x{{ item.quantidade }}</span>
+                </div>
+                <p v-if="item.descricao" class="mt-1 text-sm text-surface-400">{{ item.descricao }}</p>
+              </div>
+              <Button icon="pi pi-trash" severity="danger" text class="min-h-9.5! shrink-0" @click="removerItem(i)" />
+            </div>
+          </div>
+          <p v-else class="text-sm text-surface-500">Nenhum item na mochila.</p>
+          <Button label="+ Adicionar Item" text class="mt-2! min-h-9.5!" @click="abrirDialogNovoItem" />
+        </Secao>
+
+        <Secao titulo="Combos">
+          <div v-if="combos.length" class="flex flex-col gap-2">
+            <div v-for="(c, i) in combos" :key="c.id ?? i" class="rounded-lg border border-white/6 bg-surface-800 p-3">
+              <div class="flex items-start justify-between gap-2">
+                <span class="font-medium text-surface-0">{{ c.nome }}</span>
+                <Button icon="pi pi-trash" severity="danger" text class="min-h-9.5! shrink-0" @click="removerCombo(i)" />
+              </div>
+              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-surface-400">
+                <span v-if="c.dados">Dados: {{ c.dados }}</span>
+                <span v-if="c.dano">Dano: {{ c.dano }}</span>
+                <span v-if="c.custo">Custo: {{ c.custo }}</span>
+                <span v-if="c.critico">Crítico: {{ c.critico }}</span>
+                <span v-if="c.acoes_turno">Ações/turno: {{ c.acoes_turno }}</span>
+              </div>
+              <p v-if="c.observacao" class="mt-1 text-sm text-surface-400">{{ c.observacao }}</p>
+            </div>
+          </div>
+          <p v-else class="text-sm text-surface-500">Nenhum combo cadastrado.</p>
+          <Button label="+ Adicionar Combo" text class="mt-2! min-h-9.5!" @click="abrirDialogNovoCombo" />
+        </Secao>
       </template>
 
       <!-- Aba: Imagens -->
@@ -353,6 +465,78 @@ onMounted(carregar)
         <template #footer>
           <Button label="Cancelar" text @click="dialogEncerrar = false" />
           <Button label="Confirmar" @click="confirmarEncerrarSessao" />
+        </template>
+      </Dialog>
+
+      <Dialog v-model:visible="dialogNovoItem" header="Novo item" modal :style="{ width: '90vw', maxWidth: '420px' }">
+        <div class="flex flex-col gap-3">
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Nome</label>
+            <InputText v-model="novoItem.nome" class="w-full" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Quantidade</label>
+            <InputNumber v-model="novoItem.quantidade" class="w-full" :min="1" showButtons />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Descrição</label>
+            <Textarea v-model="novoItem.descricao" class="w-full" rows="3" autoResize />
+          </div>
+        </div>
+        <template #footer>
+          <Button label="Cancelar" text @click="dialogNovoItem = false" />
+          <Button label="Adicionar" :disabled="!novoItem.nome" @click="confirmarNovoItem" />
+        </template>
+      </Dialog>
+
+      <Dialog v-model:visible="dialogNovoCombo" header="Novo combo" modal :style="{ width: '90vw', maxWidth: '480px' }">
+        <div class="flex flex-col gap-3">
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Nome</label>
+            <InputText v-model="novoCombo.nome" class="w-full" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Dados</label>
+              <InputText v-model="novoCombo.dados" class="w-full" placeholder="2d6+3" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Poder base</label>
+              <InputText v-model="novoCombo.poder_base" class="w-full" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Custo</label>
+              <InputText v-model="novoCombo.custo" class="w-full" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Dano</label>
+              <InputText v-model="novoCombo.dano" class="w-full" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Ações/turno</label>
+              <InputText v-model="novoCombo.acoes_turno" class="w-full" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-surface-400">Crítico</label>
+              <InputText v-model="novoCombo.critico" class="w-full" />
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Vantagens ativas</label>
+            <InputText v-model="novoCombo.vantagens_ativas" class="w-full" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Mecânica extra</label>
+            <Textarea v-model="novoCombo.mecanica_extra" class="w-full" rows="2" autoResize />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-surface-400">Observação</label>
+            <Textarea v-model="novoCombo.observacao" class="w-full" rows="2" autoResize />
+          </div>
+        </div>
+        <template #footer>
+          <Button label="Cancelar" text @click="dialogNovoCombo = false" />
+          <Button label="Adicionar" :disabled="!novoCombo.nome" @click="confirmarNovoCombo" />
         </template>
       </Dialog>
     </div>
