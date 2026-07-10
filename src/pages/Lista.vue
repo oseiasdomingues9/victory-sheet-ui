@@ -83,7 +83,7 @@ onMounted(carregar)
 
         <div class="flex items-start gap-3">
           <Avatar v-if="!avatarErro[p.id] && p.avatar_url" :image="p.avatar_url" shape="circle" size="xlarge"
-            @error="avatarErro[p.id] = true" />
+            :pt="{ image: { class: 'object-cover object-top w-full h-full' } }" @error="avatarErro[p.id] = true" />
           <Avatar v-else :label="p.nome?.charAt(0).toUpperCase()" shape="circle" size="xlarge" />
 
           <div class="min-w-0 flex-1">

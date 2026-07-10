@@ -1,9 +1,9 @@
 export function pvMax(p: { resistencia: number; pv_bonus: number }): number {
-  return 10 + p.resistencia * 5 + p.pv_bonus
+  return p.resistencia * 5 + p.pv_bonus
 }
 
 export function pmMax(p: { habilidade: number; pm_bonus: number }): number {
-  return 10 + p.habilidade * 5 + p.pm_bonus
+  return p.habilidade * 5 + p.pm_bonus
 }
 
 export function paMax(p: { poder: number }): number {

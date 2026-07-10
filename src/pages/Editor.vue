@@ -8,6 +8,7 @@ import Textarea from 'primevue/textarea'
 import Button from 'primevue/button'
 import VantagemForm from '@/components/VantagemForm.vue'
 import Secao from '@/components/Secao.vue'
+import BottomTabBar from '@/components/BottomTabBar.vue'
 import { api } from '@/composables/useApi'
 import { useLoading } from '@/composables/useLoading'
 import { pvMax, pmMax, calcularCustoTotal } from '@/composables/useCalculos'
@@ -42,6 +43,15 @@ const lore = ref('')
 const vantagens = ref<Vantagem[]>([])
 const desvantagens = ref<Vantagem[]>([])
 const imagens = ref<ImagemPersonagem[]>([])
+
+type Aba = 'dados' | 'vantagens' | 'imagens' | 'lore'
+const abaAtiva = ref<Aba>('dados')
+const abas: { key: Aba; label: string; icon: string }[] = [
+  { key: 'dados', label: 'Dados', icon: 'pi pi-user' },
+  { key: 'vantagens', label: 'Vantagens', icon: 'pi pi-star' },
+  { key: 'imagens', label: 'Imagens', icon: 'pi pi-image' },
+  { key: 'lore', label: 'Lore', icon: 'pi pi-book' },
+]
 
 const pvMaximo = computed(() => pvMax({ resistencia: resistencia.value, pv_bonus: pvBonus.value }))
 const pmMaximo = computed(() => pmMax({ habilidade: habilidade.value, pm_bonus: pmBonus.value }))
@@ -164,104 +174,115 @@ onMounted(carregar)
 </script>
 
 <template>
-  <div class="mx-auto max-w-120 p-4">
+  <div class="mx-auto max-w-120 p-4 pb-24">
     <h1 class="mb-4 text-xl font-medium text-surface-0" style="font-family: var(--font-display)">
       {{ modoEdicao ? 'Editar Personagem' : 'Novo Personagem' }}
     </h1>
 
-    <Secao titulo="Identidade">
-      <div class="flex flex-col gap-2">
-        <InputText v-model="nome" placeholder="Nome" class="w-full" />
-        <InputText v-model="subtitulo" placeholder="Subtítulo" class="w-full" />
-        <InputText v-model="arquetipo" placeholder="Arquétipo" class="w-full" />
+    <!-- Aba: Dados -->
+    <template v-if="abaAtiva === 'dados'">
+      <Secao titulo="Identidade">
+        <div class="flex flex-col gap-2">
+          <InputText v-model="nome" placeholder="Nome" class="w-full" />
+          <InputText v-model="subtitulo" placeholder="Subtítulo" class="w-full" />
+          <InputText v-model="arquetipo" placeholder="Arquétipo" class="w-full" />
 
-        <div class="flex items-center gap-3">
-          <div class="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-surface-900 ring-1 ring-white/6">
-            <img v-if="avatar_url && !avatarErro" :src="avatar_url" class="h-full w-full object-cover"
-              @error="avatarErro = true" @load="avatarErro = false" />
-            <div v-else class="flex h-full w-full items-center justify-center text-sm font-medium text-surface-500">
-              {{ nome?.charAt(0).toUpperCase() || '?' }}
+          <div class="flex items-center gap-3">
+            <div class="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-surface-900 ring-1 ring-white/6">
+              <img v-if="avatar_url && !avatarErro" :src="avatar_url" class="h-full w-full object-cover"
+                @error="avatarErro = true" @load="avatarErro = false" />
+              <div v-else class="flex h-full w-full items-center justify-center text-sm font-medium text-surface-500">
+                {{ nome?.charAt(0).toUpperCase() || '?' }}
+              </div>
             </div>
+            <InputText v-model="avatar_url" placeholder="Link da imagem" class="w-full" />
           </div>
-          <InputText v-model="avatar_url" placeholder="Link da imagem" class="w-full" />
         </div>
-      </div>
-    </Secao>
+      </Secao>
 
-    <Secao titulo="Atributos">
-      <div class="grid grid-cols-3 gap-2">
-        <div>
-          <label class="mb-1 block text-xs text-surface-500">Poder</label>
-          <InputNumber v-model="poder" :min="1" :max="10" showButtons class="w-full" />
+      <Secao titulo="Atributos">
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="mb-1 block text-xs text-surface-500">Poder</label>
+            <InputNumber v-model="poder" :min="1" :max="10" showButtons class="w-full" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-surface-500">Habilidade</label>
+            <InputNumber v-model="habilidade" :min="1" :max="10" showButtons class="w-full" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-surface-500">Resistência</label>
+            <InputNumber v-model="resistencia" :min="1" :max="10" showButtons class="w-full" />
+          </div>
         </div>
-        <div>
-          <label class="mb-1 block text-xs text-surface-500">Habilidade</label>
-          <InputNumber v-model="habilidade" :min="1" :max="10" showButtons class="w-full" />
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <div>
+            <label class="mb-1 block text-xs text-surface-500">Bônus PV</label>
+            <InputNumber v-model="pvBonus" showButtons class="w-full" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-surface-500">Bônus PM</label>
+            <InputNumber v-model="pmBonus" showButtons class="w-full" />
+          </div>
         </div>
-        <div>
-          <label class="mb-1 block text-xs text-surface-500">Resistência</label>
-          <InputNumber v-model="resistencia" :min="1" :max="10" showButtons class="w-full" />
+        <p class="mt-2 text-sm text-surface-400">
+          PV máx: <span class="font-semibold text-primary-400">{{ pvMaximo }}</span>
+          &nbsp;|&nbsp;
+          PM máx: <span class="font-semibold text-primary-400">{{ pmMaximo }}</span>
+        </p>
+      </Secao>
+
+      <Secao titulo="Perícias">
+        <InputText v-model="periciasTexto" placeholder="Luta, Influência, Mística" class="w-full" />
+      </Secao>
+
+      <Secao titulo="Habilidade Racial">
+        <div class="flex flex-col gap-2">
+          <InputText v-model="racialNome" placeholder="Nome" class="w-full" />
+          <Textarea v-model="racialDesc" placeholder="Descrição" rows="2" autoResize class="w-full" />
         </div>
-      </div>
-      <div class="mt-2 grid grid-cols-2 gap-2">
-        <div>
-          <label class="mb-1 block text-xs text-surface-500">Bônus PV</label>
-          <InputNumber v-model="pvBonus" showButtons class="w-full" />
+      </Secao>
+
+      <Secao titulo="Notas">
+        <Textarea v-model="notas" rows="3" autoResize class="w-full" />
+      </Secao>
+    </template>
+
+    <!-- Aba: Vantagens -->
+    <template v-if="abaAtiva === 'vantagens'">
+      <Secao titulo="Vantagens">
+        <div class="flex flex-col gap-2">
+          <VantagemForm v-for="(v, i) in vantagens" :key="i" :vantagem="v" :index="i" @remover="removerVantagem" />
         </div>
-        <div>
-          <label class="mb-1 block text-xs text-surface-500">Bônus PM</label>
-          <InputNumber v-model="pmBonus" showButtons class="w-full" />
+        <Button label="+ Adicionar Vantagem" text class="mt-2! min-h-9.5!" @click="adicionarVantagem" />
+      </Secao>
+
+      <Secao titulo="Desvantagens">
+        <div class="flex flex-col gap-2">
+          <VantagemForm v-for="(v, i) in desvantagens" :key="i" :vantagem="v" :index="i" :isDesv="true"
+            @remover="removerDesvantagem" />
         </div>
-      </div>
-      <p class="mt-2 text-sm text-surface-400">
-        PV máx: <span class="font-semibold text-primary-400">{{ pvMaximo }}</span>
-        &nbsp;|&nbsp;
-        PM máx: <span class="font-semibold text-primary-400">{{ pmMaximo }}</span>
-      </p>
-    </Secao>
+        <Button label="+ Adicionar Desvantagem" text class="mt-2! min-h-9.5! text-rose-400!"
+          @click="adicionarDesvantagem" />
+      </Secao>
+    </template>
 
-    <Secao titulo="Perícias">
-      <InputText v-model="periciasTexto" placeholder="Luta, Influência, Mística" class="w-full" />
-    </Secao>
+    <!-- Aba: Imagens -->
+    <template v-if="abaAtiva === 'imagens'">
+      <Secao titulo="Imagens">
+        <div class="flex flex-col gap-2">
+          <ImagemForm v-for="(img, i) in imagens" :key="i" :imagem="img" :index="i" @remover="removerImagem" />
+        </div>
+        <Button label="+ Adicionar Imagem" text class="mt-2! min-h-9.5!" @click="adicionarImagem" />
+      </Secao>
+    </template>
 
-    <Secao titulo="Habilidade Racial">
-      <div class="flex flex-col gap-2">
-        <InputText v-model="racialNome" placeholder="Nome" class="w-full" />
-        <Textarea v-model="racialDesc" placeholder="Descrição" rows="2" autoResize class="w-full" />
-      </div>
-    </Secao>
-
-    <Secao titulo="Notas">
-      <Textarea v-model="notas" rows="3" autoResize class="w-full" />
-    </Secao>
-
-    <Secao titulo="Vantagens">
-      <div class="flex flex-col gap-2">
-        <VantagemForm v-for="(v, i) in vantagens" :key="i" :vantagem="v" :index="i" @remover="removerVantagem" />
-      </div>
-      <Button label="+ Adicionar Vantagem" text class="mt-2! min-h-9.5!" @click="adicionarVantagem" />
-    </Secao>
-
-    <Secao titulo="Desvantagens">
-      <div class="flex flex-col gap-2">
-        <VantagemForm v-for="(v, i) in desvantagens" :key="i" :vantagem="v" :index="i" :isDesv="true"
-          @remover="removerDesvantagem" />
-      </div>
-      <Button label="+ Adicionar Desvantagem" text class="mt-2! min-h-9.5! text-rose-400!"
-        @click="adicionarDesvantagem" />
-    </Secao>
-
-
-    <Secao titulo="Imagens">
-      <div class="flex flex-col gap-2">
-        <ImagemForm v-for="(img, i) in imagens" :key="i" :imagem="img" :index="i" @remover="removerImagem" />
-      </div>
-      <Button label="+ Adicionar Imagem" text class="mt-2! min-h-9.5!" @click="adicionarImagem" />
-    </Secao>
-
-    <Secao titulo="Lore">
-      <Textarea v-model="lore" rows="3" autoResize class="w-full" />
-    </Secao>
+    <!-- Aba: Lore -->
+    <template v-if="abaAtiva === 'lore'">
+      <Secao titulo="Lore">
+        <Textarea v-model="lore" rows="3" autoResize class="w-full" />
+      </Secao>
+    </template>
 
     <!-- Custo total -->
     <div class="mb-6 flex items-center justify-between rounded-lg bg-surface-800 p-3">
@@ -275,6 +296,8 @@ onMounted(carregar)
       <Button label="Salvar" class="min-h-9.5! flex-1" @click="salvar" />
     </div>
   </div>
+
+  <BottomTabBar v-model="abaAtiva" :abas="abas" />
 </template>
 
 <style scoped>

@@ -13,8 +13,9 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import Toast from 'primevue/toast';
 import ProgressBar from 'primevue/progressbar';
 import InputNumber from 'primevue/inputnumber';
-
 import Avatar from 'primevue/avatar';
+import Image from 'primevue/image'
+
 
 
 import Tooltip from "primevue/tooltip";
@@ -40,8 +41,9 @@ export const primevue = {
     app.component('Toast', Toast);
     app.component('ProgressBar', ProgressBar);
     app.component('InputNumber', InputNumber);
-
     app.component('Avatar', Avatar);
+    app.component('Image', Image);
+
 
     app.directive('tooltip', Tooltip);
 

@@ -7,10 +7,12 @@ import Tag from 'primevue/tag'
 import Chip from 'primevue/chip'
 import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
-import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import ResourceBar from '@/components/ResourceBar.vue'
 import VantagemItem from '@/components/VantagemItem.vue'
+import BottomTabBar from '@/components/BottomTabBar.vue'
+import ComboSheet from '@/components/ComboSheet.vue'
+import ItemMochilaSheet from '@/components/ItemMochilaSheet.vue'
 import { api } from '@/composables/useApi'
 import { pvMax, pmMax, paMax, calcularCustoTotal } from '@/composables/useCalculos'
 import type { Personagem, Vantagem, Estado, Sessao, ImagemPersonagem, Combo, ItemMochila } from '@/types'
@@ -41,8 +43,12 @@ const combos = ref<Combo[]>([])
 const dialogEncerrar = ref(false)
 const notasSessao = ref('')
 
-const dialogNovoItem = ref(false)
-const dialogNovoCombo = ref(false)
+const sheetItemAberto = ref(false)
+const itemEditandoIndex = ref<number | null>(null)
+const sheetComboAberto = ref(false)
+const comboEditandoIndex = ref<number | null>(null)
+
+const avatarErro = ref(false)
 
 const itemVazio = (): ItemMochila => ({ nome: '', descricao: '', quantidade: 1, ordem: mochila.value.length })
 const comboVazio = (): Combo => ({
@@ -61,6 +67,8 @@ const comboVazio = (): Combo => ({
 
 const novoItem = ref<ItemMochila>(itemVazio())
 const novoCombo = ref<Combo>(comboVazio())
+
+const imagemErro = ref<Record<number, boolean>>({})
 
 type Aba = 'dados' | 'vantagens' | 'mochila' | 'imagens' | 'lore'
 const abaAtiva = ref<Aba>('dados')
@@ -124,53 +132,89 @@ async function carregar() {
   }
 }
 
-function abrirDialogNovoItem() {
+function abrirNovoItem() {
+  itemEditandoIndex.value = null
   novoItem.value = itemVazio()
-  dialogNovoItem.value = true
+  sheetItemAberto.value = true
 }
 
-async function confirmarNovoItem() {
-  const atualizados = [...mochila.value, { ...novoItem.value }]
+function abrirEditarItem(index: number) {
+  itemEditandoIndex.value = index
+  novoItem.value = { ...(mochila.value[index] ?? itemVazio()) }
+  sheetItemAberto.value = true
+}
+
+function fecharSheetItem() {
+  sheetItemAberto.value = false
+}
+
+async function confirmarItem() {
+  const atualizados = [...mochila.value]
+  if (itemEditandoIndex.value === null) {
+    atualizados.push({ ...novoItem.value })
+  } else {
+    atualizados[itemEditandoIndex.value] = { ...novoItem.value }
+  }
   try {
     await api.salvarMochila(id.value, atualizados)
     mochila.value = atualizados
-    dialogNovoItem.value = false
+    sheetItemAberto.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao salvar item', life: 3000 })
   }
 }
 
-async function removerItem(index: number) {
-  const atualizados = mochila.value.filter((_, i) => i !== index)
+async function excluirItemAtual() {
+  if (itemEditandoIndex.value === null) return
+  const atualizados = mochila.value.filter((_, i) => i !== itemEditandoIndex.value)
   try {
     await api.salvarMochila(id.value, atualizados)
     mochila.value = atualizados
+    sheetItemAberto.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao remover item', life: 3000 })
   }
 }
 
-function abrirDialogNovoCombo() {
+function abrirNovoCombo() {
+  comboEditandoIndex.value = null
   novoCombo.value = comboVazio()
-  dialogNovoCombo.value = true
+  sheetComboAberto.value = true
 }
 
-async function confirmarNovoCombo() {
-  const atualizados = [...combos.value, { ...novoCombo.value }]
+function abrirEditarCombo(index: number) {
+  comboEditandoIndex.value = index
+  novoCombo.value = { ...(combos.value[index] ?? comboVazio()) }
+  sheetComboAberto.value = true
+}
+
+function fecharSheetCombo() {
+  sheetComboAberto.value = false
+}
+
+async function confirmarCombo() {
+  const atualizados = [...combos.value]
+  if (comboEditandoIndex.value === null) {
+    atualizados.push({ ...novoCombo.value })
+  } else {
+    atualizados[comboEditandoIndex.value] = { ...novoCombo.value }
+  }
   try {
     await api.salvarCombos(id.value, atualizados)
     combos.value = atualizados
-    dialogNovoCombo.value = false
+    sheetComboAberto.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao salvar combo', life: 3000 })
   }
 }
 
-async function removerCombo(index: number) {
-  const atualizados = combos.value.filter((_, i) => i !== index)
+async function excluirComboAtual() {
+  if (comboEditandoIndex.value === null) return
+  const atualizados = combos.value.filter((_, i) => i !== comboEditandoIndex.value)
   try {
     await api.salvarCombos(id.value, atualizados)
     combos.value = atualizados
+    sheetComboAberto.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao remover combo', life: 3000 })
   }
@@ -272,11 +316,10 @@ onMounted(carregar)
         </RouterLink>
 
         <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-800 ring-1 ring-white/6">
-          <img v-if="personagem.avatar_url" :src="personagem.avatar_url" :alt="personagem.nome"
-            class="h-full w-full object-cover" @error="($event.target as HTMLImageElement).style.display = 'none'" />
-          <div v-else class="flex h-full w-full items-center justify-center font-medium text-surface-500">
-            {{ personagem.nome?.charAt(0).toUpperCase() }}
-          </div>
+          <Avatar :image="!avatarErro && personagem.avatar_url ? personagem.avatar_url : undefined"
+            :label="!personagem.avatar_url || avatarErro ? personagem.nome?.charAt(0).toUpperCase() : undefined"
+            shape="circle" size="large" :pt="{ image: { class: 'object-cover object-top w-full h-full' } }"
+            class="ring-1 ring-white/6" @error="avatarErro = true" />
         </div>
 
         <div class="min-w-0 flex-1">
@@ -394,40 +437,45 @@ onMounted(carregar)
         <Secao titulo="Itens">
           <div v-if="mochila.length" class="flex flex-col gap-2">
             <div v-for="(item, i) in mochila" :key="item.id ?? i"
-              class="flex items-start justify-between gap-2 rounded-lg border border-white/6 bg-surface-800 p-3">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-surface-0">{{ item.nome }}</span>
-                  <span class="text-sm text-surface-400">x{{ item.quantidade }}</span>
-                </div>
-                <p v-if="item.descricao" class="mt-1 text-sm text-surface-400">{{ item.descricao }}</p>
+              class="cursor-pointer rounded-lg border border-white/6 bg-surface-800 p-3 transition-colors active:bg-surface-700"
+              @click="abrirEditarItem(i)">
+              <div class="flex items-start justify-between gap-2">
+                <span class="font-medium text-surface-0">{{ item.nome }}</span>
+                <i class="pi pi-pencil shrink-0 text-xs text-surface-500" />
               </div>
-              <Button icon="pi pi-trash" severity="danger" text class="min-h-9.5! shrink-0" @click="removerItem(i)" />
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <Tag :value="`x${item.quantidade}`" severity="secondary" />
+              </div>
+              <p v-if="item.descricao" class="mt-2 text-sm text-surface-400">{{ item.descricao }}</p>
             </div>
           </div>
           <p v-else class="text-sm text-surface-500">Nenhum item na mochila.</p>
-          <Button label="+ Adicionar Item" text class="mt-2! min-h-9.5!" @click="abrirDialogNovoItem" />
+          <Button label="+ Adicionar Item" text class="mt-2! min-h-9.5!" @click="abrirNovoItem" />
         </Secao>
 
         <Secao titulo="Combos">
           <div v-if="combos.length" class="flex flex-col gap-2">
-            <div v-for="(c, i) in combos" :key="c.id ?? i" class="rounded-lg border border-white/6 bg-surface-800 p-3">
+            <div v-for="(c, i) in combos" :key="c.id ?? i"
+              class="cursor-pointer rounded-lg border border-white/6 bg-surface-800 p-3 transition-colors active:bg-surface-700"
+              @click="abrirEditarCombo(i)">
               <div class="flex items-start justify-between gap-2">
                 <span class="font-medium text-surface-0">{{ c.nome }}</span>
-                <Button icon="pi pi-trash" severity="danger" text class="min-h-9.5! shrink-0" @click="removerCombo(i)" />
+                <i class="pi pi-pencil shrink-0 text-xs text-surface-500" />
               </div>
-              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-surface-400">
-                <span v-if="c.dados">Dados: {{ c.dados }}</span>
-                <span v-if="c.dano">Dano: {{ c.dano }}</span>
-                <span v-if="c.custo">Custo: {{ c.custo }}</span>
-                <span v-if="c.critico">Crítico: {{ c.critico }}</span>
-                <span v-if="c.acoes_turno">Ações/turno: {{ c.acoes_turno }}</span>
+
+              <div v-if="c.dados || c.dano || c.custo || c.critico || c.acoes_turno" class="mt-2 flex flex-wrap gap-1.5">
+                <Tag v-if="c.dados" :value="c.dados" icon="pi pi-circle-fill" severity="secondary" />
+                <Tag v-if="c.dano" :value="`Dano ${c.dano}`" severity="danger" />
+                <Tag v-if="c.custo" :value="`Custo ${c.custo}`" severity="info" />
+                <Tag v-if="c.critico" :value="`Crít. ${c.critico}`" severity="warn" />
+                <Tag v-if="c.acoes_turno" :value="`${c.acoes_turno}x/turno`" severity="secondary" />
               </div>
-              <p v-if="c.observacao" class="mt-1 text-sm text-surface-400">{{ c.observacao }}</p>
+
+              <p v-if="c.observacao" class="mt-2 text-sm text-surface-400">{{ c.observacao }}</p>
             </div>
           </div>
           <p v-else class="text-sm text-surface-500">Nenhum combo cadastrado.</p>
-          <Button label="+ Adicionar Combo" text class="mt-2! min-h-9.5!" @click="abrirDialogNovoCombo" />
+          <Button label="+ Adicionar Combo" text class="mt-2! min-h-9.5!" @click="abrirNovoCombo" />
         </Secao>
       </template>
 
@@ -435,8 +483,12 @@ onMounted(carregar)
       <template v-if="abaAtiva === 'imagens'">
         <div v-if="imagens.length" class="grid grid-cols-2 gap-3">
           <div v-for="img in imagens" :key="img.id" class="overflow-hidden rounded-lg bg-surface-800">
-            <img :src="img.url" :alt="img.titulo || personagem.nome" class="aspect-square w-full object-cover"
-              @error="($event.target as HTMLImageElement).style.display = 'none'" />
+            <Image v-if="!imagemErro[img.id]" :src="img.url" :alt="img.titulo || personagem.nome" preview
+              image-class="aspect-square w-full object-cover" class="block w-full"
+              @error="imagemErro[img.id] = true" />
+            <div v-else class="flex aspect-square w-full items-center justify-center">
+              <i class="pi pi-image text-2xl text-surface-600" />
+            </div>
             <div v-if="img.titulo || img.subtitulo" class="p-2">
               <p v-if="img.titulo" class="truncate text-sm font-medium text-surface-0">{{ img.titulo }}</p>
               <p v-if="img.subtitulo" class="truncate text-xs text-surface-400">{{ img.subtitulo }}</p>
@@ -468,88 +520,14 @@ onMounted(carregar)
         </template>
       </Dialog>
 
-      <Dialog v-model:visible="dialogNovoItem" header="Novo item" modal :style="{ width: '90vw', maxWidth: '420px' }">
-        <div class="flex flex-col gap-3">
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Nome</label>
-            <InputText v-model="novoItem.nome" class="w-full" />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Quantidade</label>
-            <InputNumber v-model="novoItem.quantidade" class="w-full" :min="1" showButtons />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Descrição</label>
-            <Textarea v-model="novoItem.descricao" class="w-full" rows="3" autoResize />
-          </div>
-        </div>
-        <template #footer>
-          <Button label="Cancelar" text @click="dialogNovoItem = false" />
-          <Button label="Adicionar" :disabled="!novoItem.nome" @click="confirmarNovoItem" />
-        </template>
-      </Dialog>
-
-      <Dialog v-model:visible="dialogNovoCombo" header="Novo combo" modal :style="{ width: '90vw', maxWidth: '480px' }">
-        <div class="flex flex-col gap-3">
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Nome</label>
-            <InputText v-model="novoCombo.nome" class="w-full" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Dados</label>
-              <InputText v-model="novoCombo.dados" class="w-full" placeholder="2d6+3" />
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Poder base</label>
-              <InputText v-model="novoCombo.poder_base" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Custo</label>
-              <InputText v-model="novoCombo.custo" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Dano</label>
-              <InputText v-model="novoCombo.dano" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Ações/turno</label>
-              <InputText v-model="novoCombo.acoes_turno" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-surface-400">Crítico</label>
-              <InputText v-model="novoCombo.critico" class="w-full" />
-            </div>
-          </div>
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Vantagens ativas</label>
-            <InputText v-model="novoCombo.vantagens_ativas" class="w-full" />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Mecânica extra</label>
-            <Textarea v-model="novoCombo.mecanica_extra" class="w-full" rows="2" autoResize />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm text-surface-400">Observação</label>
-            <Textarea v-model="novoCombo.observacao" class="w-full" rows="2" autoResize />
-          </div>
-        </div>
-        <template #footer>
-          <Button label="Cancelar" text @click="dialogNovoCombo = false" />
-          <Button label="Adicionar" :disabled="!novoCombo.nome" @click="confirmarNovoCombo" />
-        </template>
-      </Dialog>
     </div>
 
-    <nav class="fixed inset-x-0 bottom-0 z-20 border-t border-white/6 bg-surface-900/95 backdrop-blur">
-      <div class="mx-auto flex max-w-120" :style="{ paddingBottom: 'env(safe-area-inset-bottom)' }">
-        <button v-for="aba in abas" :key="aba.key" type="button"
-          class="flex flex-1 flex-col items-center gap-1 py-2.5 text-xs transition-colors"
-          :class="abaAtiva === aba.key ? 'text-primary-400' : 'text-surface-500'" @click="abaAtiva = aba.key">
-          <i :class="aba.icon" class="text-lg" />
-          {{ aba.label }}
-        </button>
-      </div>
-    </nav>
+    <BottomTabBar v-model="abaAtiva" :abas="abas" />
+
+    <ComboSheet v-if="sheetComboAberto" v-model="novoCombo" :editando="comboEditandoIndex !== null"
+      @salvar="confirmarCombo" @excluir="excluirComboAtual" @fechar="fecharSheetCombo" />
+
+    <ItemMochilaSheet v-if="sheetItemAberto" v-model="novoItem" :editando="itemEditandoIndex !== null"
+      @salvar="confirmarItem" @excluir="excluirItemAtual" @fechar="fecharSheetItem" />
   </template>
 </template>
