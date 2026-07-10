@@ -22,4 +22,6 @@ app.use(PrimeVue, {
 })
 app.use(primevue);
 
-app.mount('#app')
+router.isReady().then(() => {
+  app.mount('#app')
+})

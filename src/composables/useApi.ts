@@ -1,6 +1,10 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import type { Personagem, Vantagem, Estado, Sessao, ExportacaoPersonagem, ImagemPersonagem, Combo, ItemMochila } from '@/types'
 import { userManager } from './userAuth'
+
+interface RequestConfigComRetry extends InternalAxiosRequestConfig {
+  _retry?: boolean
+}
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api',
@@ -16,23 +20,40 @@ http.interceptors.request.use(async (config) => {
   return config
 })
 
-
+// Evita que N requisições em paralelo (ex: Promise.all na Ficha) disparem N
+// renovações silenciosas e N redirects simultâneos quando o token expira.
+let renovacaoEmAndamento: ReturnType<typeof userManager.signinSilent> | null = null
+let redirecionandoParaLogin = false
 
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const config = error.config as RequestConfigComRetry | undefined
+
+    if (error.response?.status === 401 && config && !config._retry) {
+      config._retry = true // no máximo 1 retry por requisição, nunca reentra em loop
+
       try {
-        const user = await userManager.signinSilent()
-        if (user?.access_token && error.config) {
-          error.config.headers.Authorization = `Bearer ${user.access_token}`
-          return http.request(error.config) // retry com token novo
+        if (!renovacaoEmAndamento) {
+          renovacaoEmAndamento = userManager.signinSilent().finally(() => {
+            renovacaoEmAndamento = null
+          })
+        }
+        const user = await renovacaoEmAndamento
+        if (user?.access_token) {
+          config.headers.Authorization = `Bearer ${user.access_token}`
+          return http.request(config) // retry único com token novo
         }
       } catch {
         // silent renew falhou, sessão do IdP realmente morreu
+      }
+
+      if (!redirecionandoParaLogin) {
+        redirecionandoParaLogin = true
         userManager.signinRedirect()
       }
     }
+
     return Promise.reject(error)
   }
 )
