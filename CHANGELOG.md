@@ -2,11 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [1.1.0] - 2026-07-10
+
+### 🚀 Features
+
+- Adiciona favicon personalizado e vite-pwa
+- Melhora visualização de imagem, transforma editor em abas e separa ComboSheet e MochilaSheet em páginas
 
 ### ⚙️ Miscellaneous Tasks
 
 - Remove .env e vscode do versionamento
+- Adiciona changelog gerado com git-cliff
 
 ## [1.0.1] - 2026-07-09
 
