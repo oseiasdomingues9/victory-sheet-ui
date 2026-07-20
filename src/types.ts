@@ -57,10 +57,15 @@ export interface ExportacaoPersonagem {
   estado: Estado | null
 }
 
+export type TipoImagem = 'avatar' | 'galeria' | 'ficha' | 'capa'
+
 export interface ImagemPersonagem {
-  id: number
-  personagem_id: number
+  id?: number
+  personagem_id?: number
   url: string
+  tipo: TipoImagem
+  r2_key?: string
+  r2_bucket?: string
   titulo: string
   subtitulo: string
   ordem: number

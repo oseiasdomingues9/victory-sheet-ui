@@ -111,6 +111,20 @@ export const api = {
     return http.post(`/imagens/${id}`, imagens).then((r) => r.data)
   },
 
+  uploadImagem(arquivo: File) {
+    const form = new FormData()
+    form.append('file', arquivo)
+    return http
+      .post<{ key: string; bucket: string }>('/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+
+  getImagemUrl(imagemId: number | string) {
+    return http.get<{ url: string }>(`/imagens/${imagemId}/url`).then((r) => r.data)
+  },
+
   getCombos(id: number | string) {
     return http.get<Combo[]>(`/personagens/${id}/combos`).then((r) => r.data)
   },
