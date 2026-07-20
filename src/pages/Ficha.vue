@@ -580,16 +580,19 @@ onMounted(carregar)
       <template v-if="abaAtiva === 'imagens'">
         <Secao titulo="Imagens">
           <div v-if="imagens.length" class="grid grid-cols-2 gap-3">
-            <div v-for="(img, i) in imagens" :key="img.id ?? i"
-              class="cursor-pointer overflow-hidden rounded-lg bg-surface-800" @click="abrirEditarImagem(i)">
+            <div v-for="(img, i) in imagens" :key="img.id ?? i" class="overflow-hidden rounded-lg bg-surface-800">
               <div class="relative aspect-square w-full">
-                <Image v-if="!imagemErro[img.id ?? -1]" :src="img.url" :alt="img.titulo || personagem.nome"
+                <Image v-if="!imagemErro[img.id ?? -1]" :src="img.url" :alt="img.titulo || personagem.nome" preview
                   image-class="aspect-square w-full object-cover" class="block h-full w-full"
                   @error="tratarErroImagem(img)" />
                 <div v-else class="flex h-full w-full items-center justify-center">
                   <i class="pi pi-image text-2xl text-surface-600" />
                 </div>
-                <i class="pi pi-pencil absolute right-2 top-2 text-xs text-surface-0" style="filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6))" />
+                <button type="button"
+                  class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-surface-900/70 text-surface-0 backdrop-blur"
+                  @click.stop="abrirEditarImagem(i)">
+                  <i class="pi pi-pencil text-xs" />
+                </button>
               </div>
               <div v-if="img.titulo || img.subtitulo" class="p-2">
                 <p v-if="img.titulo" class="truncate text-sm font-medium text-surface-0">{{ img.titulo }}</p>
