@@ -298,7 +298,9 @@ async function confirmarImagem() {
 
   try {
     await api.salvarImagens(id.value, atualizados)
-    imagens.value = atualizados
+    // rebusca do backend: a imagem enviada por upload só recebe URL assinada de
+    // verdade (e id) depois de salva — o dado local tem só a key crua do R2.
+    imagens.value = await api.getImagens(id.value)
     sheetImagemAberto.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao salvar imagem', life: 3000 })
