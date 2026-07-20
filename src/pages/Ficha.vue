@@ -13,6 +13,7 @@ import VantagemItem from '@/components/VantagemItem.vue'
 import BottomTabBar from '@/components/BottomTabBar.vue'
 import ComboSheet from '@/components/ComboSheet.vue'
 import ItemMochilaSheet from '@/components/ItemMochilaSheet.vue'
+import ImagemSheet from '@/components/ImagemSheet.vue'
 import { api } from '@/composables/useApi'
 import { pvMax, pmMax, paMax, calcularCustoTotal } from '@/composables/useCalculos'
 import type { Personagem, Vantagem, Estado, Sessao, ImagemPersonagem, Combo, ItemMochila } from '@/types'
@@ -47,6 +48,8 @@ const sheetItemAberto = ref(false)
 const itemEditandoIndex = ref<number | null>(null)
 const sheetComboAberto = ref(false)
 const comboEditandoIndex = ref<number | null>(null)
+const sheetImagemAberto = ref(false)
+const imagemEditandoIndex = ref<number | null>(null)
 
 const avatarErro = ref(false)
 
@@ -65,10 +68,51 @@ const comboVazio = (): Combo => ({
   ordem: combos.value.length,
 })
 
+const imagemVazia = (): ImagemPersonagem => ({
+  url: '',
+  tipo: 'galeria',
+  titulo: '',
+  subtitulo: '',
+  ordem: imagens.value.length,
+})
+
 const novoItem = ref<ItemMochila>(itemVazio())
 const novoCombo = ref<Combo>(comboVazio())
+const novaImagem = ref<ImagemPersonagem>(imagemVazia())
 
 const imagemErro = ref<Record<number, boolean>>({})
+const imagemRenovada = ref<Record<number, boolean>>({})
+
+// URL assinada do R2 expira em 1h — se falhar ao carregar, tenta renovar uma vez
+// antes de assumir que a imagem realmente quebrou.
+async function tratarErroImagem(img: ImagemPersonagem) {
+  if (!img.id) return
+  if (imagemRenovada.value[img.id]) {
+    imagemErro.value[img.id] = true
+    return
+  }
+  imagemRenovada.value[img.id] = true
+  try {
+    const { url } = await api.getImagemUrl(img.id)
+    img.url = url
+  } catch {
+    imagemErro.value[img.id] = true
+  }
+}
+
+// Avatar novo (upload R2, tipo:'avatar' em ImagemPersonagem) tem prioridade sobre o
+// campo legado personagem.avatar_url — personagens ainda não migrados caem no fallback.
+const imagemAvatar = computed(() => imagens.value.find((img) => img.tipo === 'avatar'))
+const avatarUrl = computed(() => imagemAvatar.value?.url || personagem.value?.avatar_url || '')
+
+async function tratarErroAvatar() {
+  if (imagemAvatar.value?.id) {
+    await tratarErroImagem(imagemAvatar.value)
+    if (imagemErro.value[imagemAvatar.value.id]) avatarErro.value = true
+  } else {
+    avatarErro.value = true
+  }
+}
 
 type Aba = 'dados' | 'vantagens' | 'mochila' | 'imagens' | 'lore'
 const abaAtiva = ref<Aba>('dados')
@@ -220,6 +264,59 @@ async function excluirComboAtual() {
   }
 }
 
+function abrirNovaImagem() {
+  imagemEditandoIndex.value = null
+  novaImagem.value = imagemVazia()
+  sheetImagemAberto.value = true
+}
+
+function abrirEditarImagem(index: number) {
+  imagemEditandoIndex.value = index
+  novaImagem.value = { ...(imagens.value[index] ?? imagemVazia()) }
+  sheetImagemAberto.value = true
+}
+
+function fecharSheetImagem() {
+  sheetImagemAberto.value = false
+}
+
+async function confirmarImagem() {
+  let atualizados = imagens.value.map((img) => ({ ...img }))
+
+  // só pode existir 1 imagem tipo:'avatar' por personagem — o backend rejeita com 400
+  if (novaImagem.value.tipo === 'avatar') {
+    atualizados = atualizados.map((img, i) =>
+      img.tipo === 'avatar' && i !== imagemEditandoIndex.value ? { ...img, tipo: 'galeria' } : img,
+    )
+  }
+
+  if (imagemEditandoIndex.value === null) {
+    atualizados.push({ ...novaImagem.value })
+  } else {
+    atualizados[imagemEditandoIndex.value] = { ...novaImagem.value }
+  }
+
+  try {
+    await api.salvarImagens(id.value, atualizados)
+    imagens.value = atualizados
+    sheetImagemAberto.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao salvar imagem', life: 3000 })
+  }
+}
+
+async function excluirImagemAtual() {
+  if (imagemEditandoIndex.value === null) return
+  const atualizados = imagens.value.filter((_, i) => i !== imagemEditandoIndex.value)
+  try {
+    await api.salvarImagens(id.value, atualizados)
+    imagens.value = atualizados
+    sheetImagemAberto.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Erro ao remover imagem', life: 3000 })
+  }
+}
+
 function salvarEstadoDebounced() {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
@@ -316,10 +413,10 @@ onMounted(carregar)
         </RouterLink>
 
         <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-800 ring-1 ring-white/6">
-          <Avatar :image="!avatarErro && personagem.avatar_url ? personagem.avatar_url : undefined"
-            :label="!personagem.avatar_url || avatarErro ? personagem.nome?.charAt(0).toUpperCase() : undefined"
+          <Avatar :image="!avatarErro && avatarUrl ? avatarUrl : undefined"
+            :label="!avatarUrl || avatarErro ? personagem.nome?.charAt(0).toUpperCase() : undefined"
             shape="circle" size="large" :pt="{ image: { class: 'object-cover object-top w-full h-full' } }"
-            class="ring-1 ring-white/6" @error="avatarErro = true" />
+            class="ring-1 ring-white/6" @error="tratarErroAvatar" />
         </div>
 
         <div class="min-w-0 flex-1">
@@ -481,25 +578,28 @@ onMounted(carregar)
 
       <!-- Aba: Imagens -->
       <template v-if="abaAtiva === 'imagens'">
-        <div v-if="imagens.length" class="grid grid-cols-2 gap-3">
-          <div v-for="img in imagens" :key="img.id" class="overflow-hidden rounded-lg bg-surface-800">
-            <Image v-if="!imagemErro[img.id]" :src="img.url" :alt="img.titulo || personagem.nome" preview
-              image-class="aspect-square w-full object-cover" class="block w-full"
-              @error="imagemErro[img.id] = true" />
-            <div v-else class="flex aspect-square w-full items-center justify-center">
-              <i class="pi pi-image text-2xl text-surface-600" />
-            </div>
-            <div v-if="img.titulo || img.subtitulo" class="p-2">
-              <p v-if="img.titulo" class="truncate text-sm font-medium text-surface-0">{{ img.titulo }}</p>
-              <p v-if="img.subtitulo" class="truncate text-xs text-surface-400">{{ img.subtitulo }}</p>
+        <Secao titulo="Imagens">
+          <div v-if="imagens.length" class="grid grid-cols-2 gap-3">
+            <div v-for="(img, i) in imagens" :key="img.id ?? i"
+              class="cursor-pointer overflow-hidden rounded-lg bg-surface-800" @click="abrirEditarImagem(i)">
+              <div class="relative aspect-square w-full">
+                <Image v-if="!imagemErro[img.id ?? -1]" :src="img.url" :alt="img.titulo || personagem.nome"
+                  image-class="aspect-square w-full object-cover" class="block h-full w-full"
+                  @error="tratarErroImagem(img)" />
+                <div v-else class="flex h-full w-full items-center justify-center">
+                  <i class="pi pi-image text-2xl text-surface-600" />
+                </div>
+                <i class="pi pi-pencil absolute right-2 top-2 text-xs text-surface-0" style="filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6))" />
+              </div>
+              <div v-if="img.titulo || img.subtitulo" class="p-2">
+                <p v-if="img.titulo" class="truncate text-sm font-medium text-surface-0">{{ img.titulo }}</p>
+                <p v-if="img.subtitulo" class="truncate text-xs text-surface-400">{{ img.subtitulo }}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div v-else
-          class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-surface-700 p-10 text-center">
-          <i class="pi pi-image text-2xl text-surface-600" />
-          <p class="text-sm text-surface-500">Nenhuma imagem cadastrada.</p>
-        </div>
+          <p v-else class="text-sm text-surface-500">Nenhuma imagem cadastrada.</p>
+          <Button label="+ Adicionar Imagem" text class="mt-2! min-h-9.5!" @click="abrirNovaImagem" />
+        </Secao>
       </template>
 
       <!-- Aba: Lore -->
@@ -529,5 +629,8 @@ onMounted(carregar)
 
     <ItemMochilaSheet v-if="sheetItemAberto" v-model="novoItem" :editando="itemEditandoIndex !== null"
       @salvar="confirmarItem" @excluir="excluirItemAtual" @fechar="fecharSheetItem" />
+
+    <ImagemSheet v-if="sheetImagemAberto" v-model="novaImagem" :editando="imagemEditandoIndex !== null"
+      @salvar="confirmarImagem" @excluir="excluirImagemAtual" @fechar="fecharSheetImagem" />
   </template>
 </template>

@@ -12,8 +12,7 @@ import BottomTabBar from '@/components/BottomTabBar.vue'
 import { api } from '@/composables/useApi'
 import { useLoading } from '@/composables/useLoading'
 import { pvMax, pmMax, calcularCustoTotal } from '@/composables/useCalculos'
-import type { ImagemPersonagem, Personagem, Vantagem } from '@/types'
-import ImagemForm from '@/components/ImagemForm.vue'
+import type { Personagem, Vantagem } from '@/types'
 
 const avatarErro = ref(false)
 
@@ -42,14 +41,12 @@ const lore = ref('')
 
 const vantagens = ref<Vantagem[]>([])
 const desvantagens = ref<Vantagem[]>([])
-const imagens = ref<ImagemPersonagem[]>([])
 
-type Aba = 'dados' | 'vantagens' | 'imagens' | 'lore'
+type Aba = 'dados' | 'vantagens' | 'lore'
 const abaAtiva = ref<Aba>('dados')
 const abas: { key: Aba; label: string; icon: string }[] = [
   { key: 'dados', label: 'Dados', icon: 'pi pi-user' },
   { key: 'vantagens', label: 'Vantagens', icon: 'pi pi-star' },
-  { key: 'imagens', label: 'Imagens', icon: 'pi pi-image' },
   { key: 'lore', label: 'Lore', icon: 'pi pi-book' },
 ]
 
@@ -87,11 +84,10 @@ function removerDesvantagem(index: number) {
 async function carregar() {
   if (!id.value) return
   try {
-    const [p, v, img] = await withLoading(() =>
+    const [p, v] = await withLoading(() =>
       Promise.all([
         api.getPersonagem(id.value!),
         api.getVantagens(id.value!),
-        api.getImagens(id.value!),
       ]),
     )
     nome.value = p.nome
@@ -111,19 +107,10 @@ async function carregar() {
 
     vantagens.value = v.filter((x) => x.custo >= 0 && !x.tags.includes('desvantagem'))
     desvantagens.value = v.filter((x) => x.custo < 0 || x.tags.includes('desvantagem'))
-    imagens.value = img
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Erro ao carregar personagem', life: 3000 })
     router.push('/')
   }
-}
-
-function adicionarImagem() {
-  imagens.value.push({ url: '', titulo: '', subtitulo: '', ordem: imagens.value.length } as ImagemPersonagem)
-}
-
-function removerImagem(index: number) {
-  imagens.value.splice(index, 1)
 }
 
 async function salvar() {
@@ -155,7 +142,6 @@ async function salvar() {
       }
 
       await api.salvarVantagens(personagemId!, [...vantagens.value, ...desvantagens.value])
-      await api.salvarImagens(personagemId!, [...imagens.value])
       return personagemId
     }).then((personagemId) => {
       toast.add({ severity: 'success', summary: 'Salvo', detail: 'Personagem salvo com sucesso.', life: 2000 })
@@ -264,16 +250,6 @@ onMounted(carregar)
         </div>
         <Button label="+ Adicionar Desvantagem" text class="mt-2! min-h-9.5! text-rose-400!"
           @click="adicionarDesvantagem" />
-      </Secao>
-    </template>
-
-    <!-- Aba: Imagens -->
-    <template v-if="abaAtiva === 'imagens'">
-      <Secao titulo="Imagens">
-        <div class="flex flex-col gap-2">
-          <ImagemForm v-for="(img, i) in imagens" :key="i" :imagem="img" :index="i" @remover="removerImagem" />
-        </div>
-        <Button label="+ Adicionar Imagem" text class="mt-2! min-h-9.5!" @click="adicionarImagem" />
       </Secao>
     </template>
 
